@@ -1,0 +1,21 @@
+{
+  "info": {
+    "name": "Smart Local AI",
+    "namespace": "smart_local_ai",
+    "version": 4
+  },
+  "author": "OpenAI Codex",
+  "server_init_script": "file(smart_local_ai_server)",
+  "dependencies": [
+    "stonehearth",
+    "stonehearth_ace",
+    "radiant"
+  ],
+  "aliases": {
+    "actions:find_best_local_reachable_entity_by_type": "file(ai/actions/find_best_local_reachable_entity_by_type.lua)",
+    "data:settings": "file(data/settings.json)"
+  },
+  "overrides": {
+    "stonehearth/ai/actions/health/rest_when_injured_action.lua": "file(ai/actions/health/rest_when_injured_action.lua)"
+  }
+}
