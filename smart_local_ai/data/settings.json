@@ -1,0 +1,14 @@
+{
+  "local_radius": 32,
+  "expanded_radius": 64,
+  "global_fallback": true,
+  "debug_enabled": false,
+  "enable_for_hauling": true,
+  "enable_for_fetching": true,
+  "enable_for_restocking": false,
+  "disable_restock_errands": true,
+  "enable_restock_throttle": true,
+  "max_concurrent_restock_errands": 0,
+  "restock_workers_per_errand": 12,
+  "min_concurrent_restock_errands": 0
+}

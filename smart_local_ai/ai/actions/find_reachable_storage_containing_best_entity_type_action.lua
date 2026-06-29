@@ -1,0 +1,102 @@
+local Entity = _radiant.om.Entity
+
+local FindReachableStorageContainingBestEntityType = radiant.class()
+
+FindReachableStorageContainingBestEntityType.name = 'find reachable storage containing best entity type'
+FindReachableStorageContainingBestEntityType.does = 'stonehearth:find_reachable_storage_containing_best_entity_type'
+FindReachableStorageContainingBestEntityType.args = {
+   filter_fn = 'function',
+   rating_fn = 'function',
+   description = 'string',
+   owner_player_id = {
+      type = 'string',
+      default = stonehearth.ai.NIL,
+   },
+   ignore_consumers = {
+      type = 'boolean',
+      default = true,
+   },
+}
+FindReachableStorageContainingBestEntityType.think_output = {
+   storage = Entity,
+}
+FindReachableStorageContainingBestEntityType.priority = {0, 1}
+
+local function make_storage_filter_fn(entity, args_filter_fn, owner_player_id, ignore_consumers)
+   return function(storage)
+      local storage_comp = storage:get_component('stonehearth:storage')
+      if not storage_comp then
+         return false
+      end
+
+      if storage:get_component('stonehearth:stockpile') then
+         return false
+      end
+
+      if ignore_consumers and storage:get_component('stonehearth_ace:consumer') then
+         return false
+      end
+
+      if not storage_comp:is_public() or not storage_comp:allow_item_removal() then
+         return false
+      end
+
+      return storage_comp:storage_contains_filter_fn(args_filter_fn)
+   end
+end
+
+local function make_storage_rating_fn(item_filter_fn, item_rating_fn)
+   if item_rating_fn then
+      return function(storage_entity, entity)
+         local storage = storage_entity:get_component('stonehearth:storage')
+         local storage_location = radiant.entities.get_world_grid_location(storage_entity)
+         local best_rating = 0
+
+         local is_max_rating_fn = function(id, item)
+            local rating = item_rating_fn(item, entity, nil, storage_location)
+            if rating > best_rating then
+               best_rating = rating
+               if rating == 1 then
+                  return true
+               end
+            end
+         end
+
+         storage:eval_best_passing_item(item_filter_fn, is_max_rating_fn)
+         return best_rating
+      end
+   else
+      return function()
+         return 1
+      end
+   end
+end
+
+function FindReachableStorageContainingBestEntityType:start_thinking(ai, entity, args)
+   local key = tostring(args.filter_fn) .. '|' .. tostring(args.owner_player_id) .. '|' .. tostring(args.ignore_consumers)
+   local storage_filter_fn = stonehearth.ai:filter_from_key(
+         'stonehearth:find_reachable_storage_containing_best_entity_type',
+         key,
+         make_storage_filter_fn(entity, args.filter_fn, args.owner_player_id, args.ignore_consumers))
+
+   ai:set_think_output({
+      storage_filter_fn = storage_filter_fn,
+      storage_rating_fn = make_storage_rating_fn(args.filter_fn, args.rating_fn),
+   })
+end
+
+function FindReachableStorageContainingBestEntityType:compose_utility(entity, self_utility, child_utilities, current_activity)
+   return child_utilities:get('smart_local_ai:find_best_local_reachable_entity_by_type')
+end
+
+local ai = stonehearth.ai
+return ai:create_compound_action(FindReachableStorageContainingBestEntityType)
+         :execute('smart_local_ai:find_best_local_reachable_entity_by_type', {
+            filter_fn = ai.PREV.storage_filter_fn,
+            rating_fn = ai.PREV.storage_rating_fn,
+            description = ai.ARGS.description,
+            owner_player_id = ai.ARGS.owner_player_id,
+         })
+         :set_think_output({
+            storage = ai.PREV.item,
+         })
